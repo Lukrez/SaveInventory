@@ -96,7 +96,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			filePlayerFolder.mkdir();
 		}
 
-		File fileInv = new File(filePlayerFolder, dateTime + "\\.inv");
+		File fileInv = new File(filePlayerFolder, dateTime + ".inv");
 		BufferedOutputStream out = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(fileInv)));
 
 		YamlConfiguration yamlInventory = new YamlConfiguration();
@@ -155,6 +155,18 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		
 		}
 		
+		// calculate next reset
+		this.lastReset = new GregorianCalendar();
+		this.nextReset = this.calculateNextReset(this.resetAfter);
+		YamlConfiguration yml = new YamlConfiguration();
+		File configFile = new File(this.getDataFolder(), "config.yml");
+		yml.set("lastReset", this.resetDateFormat.format(this.lastReset.getTime()));
+		try {
+			yml.save(configFile);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 	}
 
 	public void loadConfig() {
@@ -170,7 +182,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			try {
 				yml.set("interval", this.interval);
 				yml.set("deleteAfter", deleteAfterString);
-				yml.set("lastReset", this.resetDateFormat.format(this.lastReset));
+				yml.set("lastReset", this.resetDateFormat.format(this.lastReset.getTime()));
 				yml.save(configFile);
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -202,7 +214,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				this.lastReset.setTime(this.resetDateFormat.parse(yml.getString("lastReset")));
 			} catch (ParseException e) {
 				this.lastReset = new GregorianCalendar();
-				yml.set("lastReset", this.resetDateFormat.format(this.lastReset));
+				yml.set("lastReset", this.resetDateFormat.format(this.lastReset.getTime()));
 				yml.save(configFile);
 			}
 			this.nextReset = calculateNextReset(this.resetAfter);
@@ -237,6 +249,13 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+		
+		if (cmd.getName().equalsIgnoreCase("show") & args.length > 0 && args[0].equalsIgnoreCase("reload")){
+			this.loadConfig();
+			sender.sendMessage("Reloaded config.");
+			return true;
+		}
+		
 		if (!(sender instanceof Player)) {
 			sender.sendMessage("Only a player can use that command.");
 			return true;
@@ -276,6 +295,8 @@ public class SaveInventory extends JavaPlugin implements Listener {
 					return true;
 				}
 				this.currentViewers.remove(player.getName());
+				player.sendMessage("Du bist ausgeloggt.");
+				return true;
 			}
 
 			if (args[0].equalsIgnoreCase("give")) {
