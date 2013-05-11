@@ -1,17 +1,15 @@
 package saveinventory;
 
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.zip.GZIPInputStream;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.zip.GZIPOutputStream;
 
 import org.bukkit.Bukkit;
@@ -27,16 +25,19 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class SaveInventory extends JavaPlugin implements Listener {
 
-	private File filePlayerData;
-	private File filePlayerfolder;
-	private String inventoryOwner, admin;
-	private String[] inventoryNames;
-	private int invPointer;
+	private static SaveInventory instance;
+	private File folderPlayerData;
+	private HashMap<String, PlayerInfo> currentViewers;
+	private int interval;
+	private String resetAfter;
+	private GregorianCalendar lastReset;
+	private GregorianCalendar nextReset;
+	private SimpleDateFormat fileDateFormat = new SimpleDateFormat("yyyy_MM_dd_HH_mm");
+	private SimpleDateFormat resetDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 
 	@Override
 	public void onDisable() {
@@ -45,37 +46,57 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 	@Override
 	public void onEnable() {
+		instance = this;
+
+		this.currentViewers = new HashMap<String, PlayerInfo>();
 		if (!this.getDataFolder().exists()) {
 			this.getDataFolder().mkdir();
 		}
 
-		this.filePlayerData = new File(this.getDataFolder(), "playerdata");
-		if (!this.filePlayerData.exists()) {
-			this.filePlayerData.mkdir();
+		this.folderPlayerData = new File(this.getDataFolder(), "playerdata");
+		if (!this.folderPlayerData.exists()) {
+			this.folderPlayerData.mkdir();
 		}
-		
-		this.getServer().getPluginManager().registerEvents(this,this);
+
+		this.loadConfig();
+
+		this.getServer().getPluginManager().registerEvents(this, this);
 
 		this.getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
 			@Override
 			public void run() {
 				saveInventories();
+				removeOldInventories();
 				Bukkit.getServer().broadcastMessage("Inventories saved.");
 			}
-		}, 60, 1200);
-		
-		this.invPointer = -1;
+		}, 60, this.interval);
 
 		this.getLogger().info("enabled.");
 	}
 
+	public boolean removeViewer(String admin) {
+		if (this.currentViewers.containsKey(admin)) {
+			this.currentViewers.remove(admin);
+			return true;
+		}
+		return false;
+	}
+
+	public File getPlayerDataFolder() {
+		return this.folderPlayerData;
+	}
+
+	public static SaveInventory getInstance() {
+		return instance;
+	}
+
 	public void saveItemStackArray(Player player, String dateTime) throws FileNotFoundException, IOException {
-		File filePlayerFolder = new File(this.filePlayerData, player.getName());
+		File filePlayerFolder = new File(this.folderPlayerData, player.getName());
 		if (!filePlayerFolder.exists()) {
 			filePlayerFolder.mkdir();
 		}
 
-		File fileInv = new File(filePlayerFolder, dateTime + ".inv");
+		File fileInv = new File(filePlayerFolder, dateTime + "\\.inv");
 		BufferedOutputStream out = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(fileInv)));
 
 		YamlConfiguration yamlInventory = new YamlConfiguration();
@@ -87,26 +108,131 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		out.close();
 	}
 
-	/*public ItemStack[] getItemStackArray(String playerName) throws IOException {
-		// FileInputStream in = new FileInputStream(f);
-		// GZIPInputStream zipin = new GZIPInputStream(in);
-
-		// byte[] buffer = new byte[sChunk];
-	}*/
-
 	public void saveInventories() {
-		DateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd_HH_mm");
 		Date date = new Date();
 
 		for (Player player : this.getServer().getOnlinePlayers()) {
 			try {
-				this.saveItemStackArray(player, dateFormat.format(date));
+				this.saveItemStackArray(player, this.fileDateFormat.format(date));
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	public void removeOldInventories(){
+		// check if time has passed
+		GregorianCalendar g = new GregorianCalendar();
+		if (g.before(this.nextReset))
+			return;
+		for (String playername : this.folderPlayerData.list()){
+			File playerfolder = new File(this.folderPlayerData,playername);
+			if (!playerfolder.isDirectory())
+				continue;
+			for (String inventory : playerfolder.list()){
+				if (!inventory.endsWith("\\.inv"))
+					continue;
+				// check if older than reset time
+				GregorianCalendar fileDate = new GregorianCalendar();
+				try {
+					fileDate.setTime(this.fileDateFormat.parse(inventory.replace("\\.inv","")));
+				} catch (ParseException e) {
+					continue;
+				}
+				
+				if (fileDate.after(this.nextReset)){
+					File invFile = new File(playerfolder,inventory);
+					invFile.delete();
+				}
+			}
+			
+			// check, if folder is empty
+			if (playerfolder.list().length == 0){
+				playerfolder.delete();
+			}
+		
+		}
+		
+	}
+
+	public void loadConfig() {
+
+		YamlConfiguration yml = new YamlConfiguration();
+		File configFile = new File(this.getDataFolder(), "config.yml");
+		if (!configFile.exists()) {
+			this.interval = 6000;
+			String deleteAfterString = "3d";
+			this.lastReset = new GregorianCalendar();
+			this.nextReset = new GregorianCalendar();
+			this.nextReset.add(GregorianCalendar.DAY_OF_YEAR, 3);
+			try {
+				yml.set("interval", this.interval);
+				yml.set("deleteAfter", deleteAfterString);
+				yml.set("lastReset", this.resetDateFormat.format(this.lastReset));
+				yml.save(configFile);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			return;
+		}
+
+		try {
+			yml.load(configFile);
+			
+			this.interval = yml.getInt("interval");
+			if (this.interval < 1200){
+				this.interval = 1200;
+				yml.set("interval", this.interval);
+				yml.save(configFile);
+				this.getLogger().warning("Interval for saving should be at least 1 min. Changed accordingly.");
+			}
+			
+			this.resetAfter = yml.getString("deleteAfter");
+			if (!this.resetAfter.matches("\\d+(h|d|w|M)")){
+				this.resetAfter = "3d";
+				yml.save(configFile);
+				this.getLogger().warning("Could not interpret how long to keep files. Use format <Number><Duration>");
+				this.getLogger().warning("use only h (hours), d (days), w (weeks) and M (Month)");
+			}
+
+			try {
+				this.lastReset = new GregorianCalendar();
+				this.lastReset.setTime(this.resetDateFormat.parse(yml.getString("lastReset")));
+			} catch (ParseException e) {
+				this.lastReset = new GregorianCalendar();
+				yml.set("lastReset", this.resetDateFormat.format(this.lastReset));
+				yml.save(configFile);
+			}
+			this.nextReset = calculateNextReset(this.resetAfter);
+
+			
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InvalidConfigurationException e) {
+			e.printStackTrace();
+		}
+
+	}
+	
+	public GregorianCalendar calculateNextReset(String s){
+		int i = Integer.parseInt(s.substring(0, s.length()-1));
+		String t = s.substring(s.length()-1, s.length());
+		GregorianCalendar g = new GregorianCalendar();
+		if (t.equals("h")){
+			g.add(GregorianCalendar.HOUR_OF_DAY, i);
+		} else if(t.equals("d")){
+			g.add(GregorianCalendar.DAY_OF_YEAR, i);
+		} else if(t.equals("w")){
+			g.add(GregorianCalendar.WEEK_OF_YEAR, i);
+		} else if(t.equals("M")){
+			g.add(GregorianCalendar.MONTH, i);
+		}
+		
+		return g;
 	}
 
 	@Override
@@ -125,101 +251,80 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			}
 
 			if (args[0].equalsIgnoreCase("inv")) {
-				this.admin = player.getName();
-				this.inventoryOwner = args[1];
 
-				this.filePlayerfolder = new File(this.filePlayerData, args[1]);
-				if (!this.filePlayerfolder.exists())
-					return true;
+				String admin = player.getName();
+				String inventoryOwner = args[1];
+				PlayerInfo adminInfo;
+				if (!this.currentViewers.containsKey(admin)) {
+					adminInfo = new PlayerInfo(admin, inventoryOwner);
+					if (!adminInfo.getPlayerFolder().exists())
+						return true;
+					this.currentViewers.put(admin, adminInfo);
+				} else {
+					adminInfo = this.currentViewers.get(admin);
+				}
 
-				this.inventoryNames = this.sortInventoryNames(filePlayerfolder.list());
-				this.invPointer = 0;
-				Inventory inv = this.loadInventory();
+				Inventory inv = adminInfo.loadInventory();
 				if (inv == null)
 					return true;
 				player.openInventory(inv);
+				return true;
+			}
+
+			if (args[0].equalsIgnoreCase("logout")) {
+				if (!this.currentViewers.containsKey(player.getName())) {
+					return true;
+				}
+				this.currentViewers.remove(player.getName());
+			}
+
+			if (args[0].equalsIgnoreCase("give")) {
+				if (!this.currentViewers.containsKey(player.getName())) {
+					return true;
+				}
+
+				PlayerInfo adminInfo = this.currentViewers.get(player.getName());
+				// check, if player is online
+				Player inventoryOwner = Bukkit.getPlayer(adminInfo.getInventoryOwner());
+				if (inventoryOwner == null) {
+					player.sendMessage("Spieler momentan nicht online.");
+					return true;
+				}
+				// check if empty inventory
+				boolean isempty = true;
+				for (ItemStack item : inventoryOwner.getInventory().getContents()) {
+					if (item != null && item.getType() != Material.AIR) {
+						isempty = false;
+						break;
+					}
+				}
+				for (ItemStack item : inventoryOwner.getInventory().getArmorContents()) {
+					if (item != null && item.getType() != Material.AIR) {
+						isempty = false;
+						break;
+					}
+				}
+
+				if (!isempty) {
+					player.sendMessage("Spielerinventar ist nicht leer, kann es nicht ersetzen. Bitte leeren.");
+					inventoryOwner.sendMessage("Ein Admin möchte dir ein altes Inventar zurückgeben, bitte leere dein momentanes Inventar.");
+					return true;
+				}
+				if (adminInfo.getLastArmor() == null || adminInfo.getLastInventory() == null) {
+					player.sendMessage("Kein Spielerinventar ausgewählt.");
+					return true;
+				}
+				inventoryOwner.getInventory().setArmorContents(adminInfo.getLastArmor());
+				inventoryOwner.getInventory().setContents(adminInfo.getLastInventory());
+				player.sendMessage("Spielerinventar von " + inventoryOwner.getName() + " wurde gsetzt.");
+				inventoryOwner.sendMessage("Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zurückgegeben.");
 				return true;
 			}
 		}
 
 		return false;
 	}
-	
-	public Inventory loadInventory(){
-		if (this.invPointer < 0)
-			return null;
-		File x = new File(this.filePlayerfolder, this.inventoryNames[this.invPointer]);
-		if (!x.exists())
-			return null;
-		
-		try {
-			FileInputStream in = new FileInputStream(x);
-			GZIPInputStream zipin = new GZIPInputStream(in);
-			InputStreamReader reader = new InputStreamReader(zipin);
-			BufferedReader br = new BufferedReader(reader);
 
-			String readed;
-			String inventoryString = "";
-			while ((readed = br.readLine()) != null) {
-				inventoryString += readed + System.getProperty("line.separator");
-			}
-			YamlConfiguration yml = new YamlConfiguration();
-			yml.loadFromString(inventoryString);
-			ItemStack[] inventory = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("inventory"), 36);
-			ItemStack[] armor = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("armor"), 4);
-			
-			Inventory inv = Bukkit.createInventory(null, 54, this.inventoryOwner);
-			// set armor
-			for (int i = 0;i<4;i++){
-				inv.setItem(i, armor[i]);
-			}
-			
-			// set inventory
-			for (int i = 0;i<9;i++){
-				inv.setItem(i+45, inventory[i]);
-			}
-			
-			for (int i = 9;i<36;i++){
-				inv.setItem(i+9, inventory[i]);
-			}
-			
-			// set water as left klick
-			if (this.invPointer > 0){
-				ItemStack itemWater= new ItemStack(Material.WATER,1);
-				ItemMeta imWater = itemWater.getItemMeta();
-				imWater.setDisplayName(this.inventoryNames[this.invPointer-1]);
-				itemWater.setItemMeta(imWater);
-				inv.setItem(6, itemWater);
-			}
-			// set book
-			ItemStack itemBook = new ItemStack(Material.BOOK,1);
-			ItemMeta imBook = itemBook.getItemMeta();
-			imBook.setDisplayName(this.inventoryNames[this.invPointer]);
-			itemBook.setItemMeta(imBook);
-			inv.setItem(7, itemBook);
-			
-			// set lava as right klick
-			if (this.invPointer < this.inventoryNames.length-1){
-				ItemStack itemLava= new ItemStack(Material.LAVA,1);
-				ItemMeta imLava = itemLava.getItemMeta();
-				imLava.setDisplayName(this.inventoryNames[this.invPointer+1]);
-				itemLava.setItemMeta(imLava);
-				inv.setItem(8, itemLava);
-			}
-			
-			return inv;
-			
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		} catch (InvalidConfigurationException e) {
-			e.printStackTrace();
-			return null;
-		}
-
-	}
-	
 	@EventHandler
 	public void onInventoryClose(InventoryCloseEvent event) {
 		if (!(event.getPlayer() instanceof Player)) {
@@ -227,10 +332,17 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		}
 
 		Player player = (Player) event.getPlayer();
-		if (!player.getName().equalsIgnoreCase(this.admin)) {
+		if (!this.currentViewers.containsKey(player.getName())) {
 			return;
 		}
-		this.admin = "";
+
+		if (!event.getInventory().getTitle().contains("SaveInventory:")) {
+			return;
+		}
+
+		// ask if the last viewed inventory should be given to the player
+		player.sendMessage("Zum Ausloggen bitte /show logout eingeben.");
+		player.sendMessage("Falls der Spieler das letzte angesehene Inventar erhalten soll bitte /show give eingeben.");
 	}
 
 	@EventHandler
@@ -240,72 +352,32 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		}
 
 		Player player = (Player) event.getWhoClicked();
-		if (!player.getName().equalsIgnoreCase(this.admin)) {
+		// check if player is a viewer
+		if (!this.currentViewers.containsKey(player.getName())) {
 			return;
 		}
-		
+
+		if (!event.getInventory().getTitle().contains("SaveInventory:")) {
+			return;
+		}
+
+		PlayerInfo admin = this.currentViewers.get(player.getName());
+
 		event.setCancelled(true);
-		
+
 		// check if klicked on slotnr 7 or 8
-		if (event.getSlot() == 6 && this.invPointer > 0){
-			this.invPointer--;
-		} else if (event.getSlot() == 8 && this.invPointer < this.inventoryNames.length-1){
-			this.invPointer++;
+		if (event.getSlot() == 6 && admin.hasPreviousInventory()) {
+			admin.setPreviousInventory();
+		} else if (event.getSlot() == 8 && admin.hasNextInventory()) {
+			admin.setNextInventory();
 		} else {
 			return;
 		}
-		
-		Inventory inv = this.loadInventory();
-		if (inv == null){
+
+		Inventory inv = admin.loadInventory();
+		if (inv == null) {
 			return;
 		}
-		event.getInventory().setContents(inv.getContents());	
-	}
-
-	private int[] toIntArray(String[] x) {
-		int[] y = new int[x.length];
-		for (int i = 0; i < x.length; i++) {
-			y[i] = Integer.parseInt(x[i]);
-		}
-		return y;
-	}
-
-	private boolean isNewerInventory(String a, String b) {
-		
-		int[] spA = toIntArray(a.replace(".inv","").split("_"));
-		if (spA.length != 5) {
-			return true;
-		}
-		int[] spB = toIntArray(b.replace(".inv","").split("_"));
-		if (spB.length != 5) {
-			return false;
-		}
-		for (int i = 0; i < 5; i++) {
-			if (spA[i] > spB[i]) {
-				return true;
-			} else if (spA[i] < spB[i]){
-				return false;
-			}
-		}
-		System.out.println(a + " < " + b);
-		return false;
-	}
-
-	private String[] sortInventoryNames(String[] names) {
-		// Bubblesort - kann auch mit etwas optimalerem ersetzt werden
-
-		boolean finnished = false;
-		while (!finnished) {
-			finnished = true;
-			for (int i = 0; i < names.length - 1; i++) {
-				if (!isNewerInventory(names[i], names[i + 1])) {
-					String x = names[i];
-					names[i] = names[i + 1];
-					names[i + 1] = x;
-					finnished = false;
-				}
-			}
-		}
-		return names;
+		event.getInventory().setContents(inv.getContents());
 	}
 }
