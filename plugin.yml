@@ -1,0 +1,7 @@
+name: SaveInventory
+main: saveinventory.SaveInventory
+version: 0.0.1
+
+commands:
+  show:
+    usage: /show
