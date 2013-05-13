@@ -1,4 +1,4 @@
-package saveinventory;
+package de.markus.saveinventory;
 
 import java.io.BufferedReader;
 import java.io.File;

@@ -1,4 +1,4 @@
-package saveinventory;
+package de.markus.saveinventory;
 
 import java.util.HashMap;
 

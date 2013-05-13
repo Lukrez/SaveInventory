@@ -1,7 +1,9 @@
 name: SaveInventory
-main: saveinventory.SaveInventory
+main: de.markus.saveinventory.SaveInventory
 version: 0.0.1
 
 commands:
-  show:
-    usage: /show
+  saveinv:
+    usage: /saveinv
+
+author: Ktesibios
