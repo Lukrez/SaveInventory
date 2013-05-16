@@ -35,7 +35,6 @@ public class SaveInventory extends JavaPlugin implements Listener {
 	private int interval;
 	private String deleteAfter;
 	private GregorianCalendar lastReset;
-	private GregorianCalendar nextReset;
 	private int taskID;
 	private SimpleDateFormat fileDateFormat = new SimpleDateFormat("yyyy_MM_dd_HH_mm");
 	private SimpleDateFormat resetDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
@@ -75,7 +74,6 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				saveInventories();
 				removeOldInventories();
 				Bukkit.getServer().broadcastMessage("Inventories saved.");
-				Bukkit.getServer().broadcastMessage("Next delete on: "+nextReset.getTime());
 			}
 		}, 60, this.interval);
 	}
@@ -133,8 +131,9 @@ public class SaveInventory extends JavaPlugin implements Listener {
 	public void removeOldInventories() {
 		System.out.println("removing inventories");
 		// check if time has passed
-		GregorianCalendar g = new GregorianCalendar();
-		if (g.before(this.nextReset))
+		GregorianCalendar g = this.keepUntilDate(this.deleteAfter);
+		
+		if (g.before(this.lastReset))
 			return;
 		System.out.println("test1");
 		for (String playername : this.folderPlayerData.list()) {
@@ -155,8 +154,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 					continue;
 				}
 				System.out.println("test5");
-				System.out.println(fileDate.getTime() + " ?? "+ this.nextReset.getTime());
-				if (fileDate.before(this.nextReset)) {
+				if (fileDate.before(g)) {
 					System.out.println("test6");
 					File invFile = new File(playerfolder, inventory);
 					invFile.delete();
@@ -170,11 +168,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 		}
 
-		// calculate next reset
 		this.lastReset = new GregorianCalendar();
-		this.nextReset = this.calculateNextReset(this.deleteAfter);
-		/*YamlConfiguration yml = new YamlConfiguration();
-		yml.set("lastReset", this.resetDateFormat.format(this.lastReset.getTime()));*/
 		this.savePluginConfig();
 	}
 
@@ -185,8 +179,6 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			this.interval = 6000;
 			this.lastReset = new GregorianCalendar();
 			this.deleteAfter = "3d";
-			this.nextReset = new GregorianCalendar();
-			this.nextReset.add(GregorianCalendar.DAY_OF_YEAR, 3);
 			this.savePluginConfig();
 			return;
 		}
@@ -232,7 +224,6 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				saveNeeded = true;
 			}
 			
-			this.nextReset = calculateNextReset(this.deleteAfter);
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -262,8 +253,8 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		
 	}
 
-	public GregorianCalendar calculateNextReset(String s) {
-		int i = Integer.parseInt(s.substring(0, s.length() - 1));
+	public GregorianCalendar keepUntilDate(String s) {
+		int i = -Integer.parseInt(s.substring(0, s.length() - 1));
 		String t = s.substring(s.length() - 1, s.length());
 		GregorianCalendar g = new GregorianCalendar();
 		if (t.equals("m")) {
