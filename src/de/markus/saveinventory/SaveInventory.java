@@ -21,8 +21,11 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -36,7 +39,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 	private String deleteAfter;
 	private GregorianCalendar lastReset;
 	private int taskID;
-	private SimpleDateFormat fileDateFormat = new SimpleDateFormat("yyyy_MM_dd_HH_mm");
+	private SimpleDateFormat fileDateFormat = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
 	private SimpleDateFormat resetDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 
 	@Override
@@ -66,8 +69,8 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 		this.getLogger().info("enabled.");
 	}
-	
-	private void startSaveTask(){
+
+	private void startSaveTask() {
 		this.taskID = this.getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
 			@Override
 			public void run() {
@@ -94,58 +97,58 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		return instance;
 	}
 
-	public void saveItemStackArray(Player player, String dateTime) throws FileNotFoundException, IOException {
+	public void saveItemStackArray(Player player, String dateTime, String savereason) {
 		File filePlayerFolder = new File(this.folderPlayerData, player.getName());
 		if (!filePlayerFolder.exists()) {
 			filePlayerFolder.mkdir();
 		}
 
 		File fileInv = new File(filePlayerFolder, dateTime + ".inv");
-		BufferedOutputStream out = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(fileInv)));
 
-		YamlConfiguration yamlInventory = new YamlConfiguration();
-		yamlInventory.set("inventory", ItemParser.getHashMapFromItemStackArray(player.getInventory().getContents()));
-		yamlInventory.set("armor", ItemParser.getHashMapFromItemStackArray(player.getInventory().getArmorContents()));
+		try {
+			BufferedOutputStream out = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(fileInv)));
 
-		out.write(yamlInventory.saveToString().getBytes());
-		out.flush();
-		out.close();
+			YamlConfiguration yamlInventory = new YamlConfiguration();
+			yamlInventory.set("world", player.getWorld().getName());
+			yamlInventory.set("savereason", savereason);
+			yamlInventory.set("inventory", ItemParser.getHashMapFromItemStackArray(player.getInventory().getContents()));
+			yamlInventory.set("armor", ItemParser.getHashMapFromItemStackArray(player.getInventory().getArmorContents()));
+
+			out.write(yamlInventory.saveToString().getBytes());
+			out.flush();
+			out.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	public void saveInventories() {
 		Date date = new Date();
 
 		for (Player player : this.getServer().getOnlinePlayers()) {
-			if (!player.hasPermission("saveinv.save"))
+			if (!player.hasPermission("saveinv.save")) {
 				continue;
-			try {
-				this.saveItemStackArray(player, this.fileDateFormat.format(date));
-			} catch (FileNotFoundException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
 			}
+			this.saveItemStackArray(player, this.fileDateFormat.format(date), "intervalsave");
 		}
 	}
 
 	public void removeOldInventories() {
-		System.out.println("removing inventories");
 		// check if time has passed
 		GregorianCalendar g = this.keepUntilDate(this.deleteAfter);
-		
+
 		if (g.before(this.lastReset))
 			return;
-		System.out.println("test1");
+
+		System.out.println("removing inventories");
 		for (String playername : this.folderPlayerData.list()) {
-			System.out.println("test2");
 			File playerfolder = new File(this.folderPlayerData, playername);
 			if (!playerfolder.isDirectory())
 				continue;
-			System.out.println("test3");
 			for (String inventory : playerfolder.list()) {
 				if (!inventory.endsWith(".inv"))
 					continue;
-				System.out.println("test4");
 				// check if older than reset time
 				GregorianCalendar fileDate = new GregorianCalendar();
 				try {
@@ -153,9 +156,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				} catch (ParseException e) {
 					continue;
 				}
-				System.out.println("test5");
 				if (fileDate.before(g)) {
-					System.out.println("test6");
 					File invFile = new File(playerfolder, inventory);
 					invFile.delete();
 				}
@@ -182,11 +183,11 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			this.savePluginConfig();
 			return;
 		}
-		
+
 		boolean saveNeeded = false;
 		try {
 			yml.load(configFile);
-			if (yml.contains("interval")){
+			if (yml.contains("interval")) {
 				this.interval = yml.getInt("interval");
 				if (this.interval < 1200) {
 					this.interval = 1200;
@@ -197,7 +198,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				this.interval = 1200;
 				saveNeeded = true;
 			}
-			if (yml.contains("deleteAfter")){
+			if (yml.contains("deleteAfter")) {
 				this.deleteAfter = yml.getString("deleteAfter");
 				if (!this.deleteAfter.matches("\\d+(m|h|d|w|M)")) {
 					this.deleteAfter = "3d";
@@ -209,9 +210,8 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				this.deleteAfter = "3d";
 				saveNeeded = true;
 			}
-			
-			
-			if (yml.contains("lastReset")){
+
+			if (yml.contains("lastReset")) {
 				try {
 					this.lastReset = new GregorianCalendar();
 					this.lastReset.setTime(this.resetDateFormat.parse(yml.getString("lastReset")));
@@ -223,7 +223,6 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				this.lastReset = new GregorianCalendar();
 				saveNeeded = true;
 			}
-			
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -232,14 +231,14 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		} catch (InvalidConfigurationException e) {
 			e.printStackTrace();
 		}
-		
-		if (saveNeeded){
+
+		if (saveNeeded) {
 			this.savePluginConfig();
 		}
 
 	}
-	
-	public void savePluginConfig(){
+
+	public void savePluginConfig() {
 		YamlConfiguration yml = new YamlConfiguration();
 		File configFile = new File(this.getDataFolder(), "config.yml");
 		yml.set("interval", this.interval);
@@ -250,7 +249,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
 	}
 
 	public GregorianCalendar keepUntilDate(String s) {
@@ -277,10 +276,10 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		if (!cmd.getName().equalsIgnoreCase("saveinv")) {
 			return true;
 		}
-		
+
 		if (!sender.hasPermission("saveinv.show"))
 			return true;
-		
+
 		if (args.length == 0) {
 			sender.sendMessage("/saveinv show <player name>");
 			sender.sendMessage("/saveinv logout");
@@ -303,13 +302,14 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		}
 
 		Player player = (Player) sender;
-		
+
 		if (args[0].equalsIgnoreCase("show")) {
 			String admin = player.getName();
 			String inventoryOwner = args[1];
 			PlayerInfo adminInfo;
 			if (!this.currentViewers.containsKey(admin)) {
 				adminInfo = new PlayerInfo(admin, inventoryOwner);
+				
 				if (!adminInfo.getPlayerFolder().exists())
 					return true;
 				this.currentViewers.put(admin, adminInfo);
@@ -387,7 +387,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		Player player = (Player) event.getPlayer();
 		if (!player.hasPermission("saveinv.show"))
 			return;
-		
+
 		if (!this.currentViewers.containsKey(player.getName())) {
 			return;
 		}
@@ -415,7 +415,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			return;
 		}
 
-		if (!event.getInventory().getTitle().contains("SaveInventory:")) {
+		if (!event.getInventory().getTitle().contains("SaveInv")) {
 			return;
 		}
 
@@ -437,5 +437,35 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			return;
 		}
 		event.getInventory().setContents(inv.getContents());
+	}
+
+	@EventHandler
+	public void onPlayerDeath(PlayerDeathEvent event) {
+		Player player = event.getEntity();
+
+		if (!player.hasPermission("saveinv.save"))
+			return;
+		Date date = new Date();
+		this.saveItemStackArray(player, this.fileDateFormat.format(date), "death");
+	}
+
+	@EventHandler
+	public void onPlayerLogout(PlayerQuitEvent event) {
+		Player player = event.getPlayer();
+
+		if (!player.hasPermission("saveinv.save"))
+			return;
+		Date date = new Date();
+		this.saveItemStackArray(player, this.fileDateFormat.format(date), "logout");
+	}
+
+	@EventHandler
+	public void onPlayerLogin(PlayerLoginEvent event) {
+		Player player = event.getPlayer();
+
+		if (!player.hasPermission("saveinv.save"))
+			return;
+		Date date = new Date();
+		this.saveItemStackArray(player, this.fileDateFormat.format(date), "login");
 	}
 }
