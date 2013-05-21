@@ -30,6 +30,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
+
 public class SaveInventory extends JavaPlugin implements Listener {
 
 	private static SaveInventory instance;
@@ -97,7 +98,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		return instance;
 	}
 
-	public void saveItemStackArray(Player player, String dateTime, String savereason) {
+	public void saveItemStackArray(Player player, String dateTime, Enum<SaveReason> savereason) {
 		File filePlayerFolder = new File(this.folderPlayerData, player.getName());
 		if (!filePlayerFolder.exists()) {
 			filePlayerFolder.mkdir();
@@ -110,7 +111,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 			YamlConfiguration yamlInventory = new YamlConfiguration();
 			yamlInventory.set("world", player.getWorld().getName());
-			yamlInventory.set("savereason", savereason);
+			yamlInventory.set("savereason", savereason.name());
 			yamlInventory.set("inventory", ItemParser.getHashMapFromItemStackArray(player.getInventory().getContents()));
 			yamlInventory.set("armor", ItemParser.getHashMapFromItemStackArray(player.getInventory().getArmorContents()));
 
@@ -130,7 +131,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			if (!player.hasPermission("saveinv.save")) {
 				continue;
 			}
-			this.saveItemStackArray(player, this.fileDateFormat.format(date), "intervalsave");
+			this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.IntervalSave);
 		}
 	}
 
@@ -446,7 +447,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		if (!player.hasPermission("saveinv.save"))
 			return;
 		Date date = new Date();
-		this.saveItemStackArray(player, this.fileDateFormat.format(date), "death");
+		this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerDeath);
 	}
 
 	@EventHandler
@@ -456,7 +457,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		if (!player.hasPermission("saveinv.save"))
 			return;
 		Date date = new Date();
-		this.saveItemStackArray(player, this.fileDateFormat.format(date), "logout");
+		this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerLogout);
 	}
 
 	@EventHandler
@@ -466,6 +467,6 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		if (!player.hasPermission("saveinv.save"))
 			return;
 		Date date = new Date();
-		this.saveItemStackArray(player, this.fileDateFormat.format(date), "login");
+		this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerLogin);
 	}
 }

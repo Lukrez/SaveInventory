@@ -26,7 +26,7 @@ public class PlayerInfo {
 
 	private ItemStack[] lastArmor;
 	private ItemStack[] lastInventory;
-	private String savereason;
+	private Enum<SaveReason> savereason;
 	private String world;
 
 	public PlayerInfo(String admin, String inventoryOwner) {
@@ -131,7 +131,13 @@ public class PlayerInfo {
 			br.close();
 			YamlConfiguration yml = new YamlConfiguration();
 			yml.loadFromString(inventoryString);
-			this.savereason = yml.getString("savereason");
+			
+	    	try {
+	    		this.savereason = SaveReason.valueOf(yml.getString("savereason"));
+	    	} catch (IllegalArgumentException e){
+	    		this.savereason = SaveReason.ParseError;
+	    	}
+			
 			this.world = yml.getString("world");
 			this.lastInventory = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("inventory"), 36);
 			this.lastArmor = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("armor"), 4);
@@ -161,15 +167,25 @@ public class PlayerInfo {
 				inv.setItem(6, itemWater);
 			}
 			// set book
-			ItemStack itemBook = new ItemStack(Material.BOOK, 1);
-			ItemMeta imBook = itemBook.getItemMeta();
-			ArrayList<String> list = new ArrayList<>();
+			ItemStack infoItem;
+			if (this.savereason == SaveReason.PlayerDeath){
+				infoItem = new ItemStack(Material.BONE, 1);
+			} else if (this.savereason == SaveReason.PlayerLogin){
+				infoItem = new ItemStack(Material.ENDER_PEARL, 1);
+			} else if (this.savereason == SaveReason.PlayerLogout){
+				infoItem = new ItemStack(Material.SADDLE, 1);
+			} else {
+				infoItem = new ItemStack(Material.BOOK, 1);
+			}
+			
+			ItemMeta infoItemMeta = infoItem.getItemMeta();
+			ArrayList<String> list = new ArrayList<String>();
 			list.add(ChatColor.RED + "world: "+this.world);
-			list.add(ChatColor.GOLD + "savereason: "+this.savereason);
-			imBook.setLore(list);
-			imBook.setDisplayName(ChatColor.GREEN + this.inventoryNames[this.invPointer]);
-			itemBook.setItemMeta(imBook);
-			inv.setItem(7, itemBook);
+			list.add(ChatColor.GOLD + "savereason: "+this.savereason.name());
+			infoItemMeta.setLore(list);
+			infoItemMeta.setDisplayName(ChatColor.GREEN + this.inventoryNames[this.invPointer]);
+			infoItem.setItemMeta(infoItemMeta);
+			inv.setItem(7, infoItem);
 
 			// set lava as right klick
 			if (this.invPointer < this.inventoryNames.length - 1) {
