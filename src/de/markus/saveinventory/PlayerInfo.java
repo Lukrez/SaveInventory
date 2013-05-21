@@ -124,6 +124,7 @@ public class PlayerInfo {
 			while ((readed = br.readLine()) != null) {
 				inventoryString += readed + System.getProperty("line.separator");
 			}
+			br.close();
 			YamlConfiguration yml = new YamlConfiguration();
 			yml.loadFromString(inventoryString);
 			this.lastInventory = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("inventory"), 36);
