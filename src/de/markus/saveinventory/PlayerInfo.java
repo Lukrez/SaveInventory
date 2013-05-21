@@ -5,9 +5,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.zip.GZIPInputStream;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -24,6 +26,8 @@ public class PlayerInfo {
 
 	private ItemStack[] lastArmor;
 	private ItemStack[] lastInventory;
+	private String savereason;
+	private String world;
 
 	public PlayerInfo(String admin, String inventoryOwner) {
 
@@ -84,7 +88,6 @@ public class PlayerInfo {
 				return false;
 			}
 		}
-		System.out.println(a + " < " + b);
 		return false;
 	}
 
@@ -107,6 +110,7 @@ public class PlayerInfo {
 	}
 
 	public Inventory loadInventory() {
+
 		if (this.invPointer < 0)
 			return null;
 		File x = new File(this.playerfolder, this.inventoryNames[this.invPointer]);
@@ -127,10 +131,13 @@ public class PlayerInfo {
 			br.close();
 			YamlConfiguration yml = new YamlConfiguration();
 			yml.loadFromString(inventoryString);
+			this.savereason = yml.getString("savereason");
+			this.world = yml.getString("world");
 			this.lastInventory = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("inventory"), 36);
 			this.lastArmor = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("armor"), 4);
 
-			Inventory inv = Bukkit.createInventory(null, 54, "SaveInventory: " + this.inventoryOwner);
+			String titleInv = "SaveInv|" + this.inventoryOwner;
+			Inventory inv = Bukkit.createInventory(null, 54, titleInv);
 			// set armor
 			for (int i = 0; i < 4; i++) {
 				inv.setItem(i, this.lastArmor[i]);
@@ -156,7 +163,11 @@ public class PlayerInfo {
 			// set book
 			ItemStack itemBook = new ItemStack(Material.BOOK, 1);
 			ItemMeta imBook = itemBook.getItemMeta();
-			imBook.setDisplayName(this.inventoryNames[this.invPointer]);
+			ArrayList<String> list = new ArrayList<>();
+			list.add(ChatColor.RED + "world: "+this.world);
+			list.add(ChatColor.GOLD + "savereason: "+this.savereason);
+			imBook.setLore(list);
+			imBook.setDisplayName(ChatColor.GREEN + this.inventoryNames[this.invPointer]);
 			itemBook.setItemMeta(imBook);
 			inv.setItem(7, itemBook);
 
@@ -172,7 +183,9 @@ public class PlayerInfo {
 			return inv;
 
 		} catch (IOException e) {
-			e.printStackTrace();
+			//e.printStackTrace();
+			System.out.println("corrupted Playerfile. Deleting");
+			x.delete();
 			return null;
 		} catch (InvalidConfigurationException e) {
 			e.printStackTrace();
