@@ -171,7 +171,7 @@ public class PlayerInfo {
 			if (this.savereason == SaveReason.PlayerDeath){
 				infoItem = new ItemStack(Material.BONE, 1);
 			} else if (this.savereason == SaveReason.PlayerLogin){
-				infoItem = new ItemStack(Material.ENDER_PEARL, 1);
+				infoItem = new ItemStack(Material.FENCE_GATE, 1);
 			} else if (this.savereason == SaveReason.PlayerLogout){
 				infoItem = new ItemStack(Material.SADDLE, 1);
 			} else {
