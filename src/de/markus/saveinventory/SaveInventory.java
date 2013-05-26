@@ -141,7 +141,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 		if (g.before(this.lastReset))
 			return;
-
+		
 		System.out.println("removing inventories");
 		for (String playername : this.folderPlayerData.list()) {
 			File playerfolder = new File(this.folderPlayerData, playername);
@@ -278,9 +278,11 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			return true;
 		}
 
-		if (!sender.hasPermission("saveinv.show"))
+		if (!sender.hasPermission("saveinv.show")){
+			sender.sendMessage("Du hast keine Rechte um dieses Plugin zu verwenden.");
 			return true;
-
+		}
+		
 		if (args.length == 0) {
 			sender.sendMessage("/saveinv show <player name>");
 			sender.sendMessage("/saveinv logout");
@@ -298,7 +300,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		}
 
 		if (!(sender instanceof Player)) {
-			sender.sendMessage("Only a player can use that command.");
+			sender.sendMessage("Nur ein Spieler kann diesen Befehl verwenden.");
 			return true;
 		}
 
@@ -311,22 +313,28 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			if (!this.currentViewers.containsKey(admin)) {
 				adminInfo = new PlayerInfo(admin, inventoryOwner);
 				
-				if (!adminInfo.getPlayerFolder().exists())
+				if (!adminInfo.getPlayerFolder().exists()){
+					player.sendMessage("Für diesen Spieler existieren keine gespeicherten Inventare.");
 					return true;
+				}
 				this.currentViewers.put(admin, adminInfo);
 			} else {
 				adminInfo = this.currentViewers.get(admin);
 			}
 
 			Inventory inv = adminInfo.loadInventory();
-			if (inv == null)
+			if (inv == null){
+				player.sendMessage("Kann das Inventar nicht öffnen.");
 				return true;
+			}
+				
 			player.openInventory(inv);
 			return true;
 		}
 
 		if (args[0].equalsIgnoreCase("logout")) {
 			if (!this.currentViewers.containsKey(player.getName())) {
+				player.sendMessage("Du bist momentan nicht eingeloggt.");
 				return true;
 			}
 			this.currentViewers.remove(player.getName());
@@ -336,6 +344,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 		if (args[0].equalsIgnoreCase("give")) {
 			if (!this.currentViewers.containsKey(player.getName())) {
+				player.sendMessage("Du bist nicht in Saveinventories eingeloggt.");
 				return true;
 			}
 
@@ -372,7 +381,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			}
 			inventoryOwner.getInventory().setArmorContents(adminInfo.getLastArmor());
 			inventoryOwner.getInventory().setContents(adminInfo.getLastInventory());
-			player.sendMessage("Spielerinventar von " + inventoryOwner.getName() + " wurde gsetzt.");
+			player.sendMessage("Spielerinventar von " + inventoryOwner.getName() + " wurde gesetzt.");
 			inventoryOwner.sendMessage("Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zurückgegeben.");
 			return true;
 		}
@@ -424,7 +433,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 		event.setCancelled(true);
 
-		// check if klicked on slotnr 7 or 8
+		// check if clicked on slotnr 7 or 8
 		if (event.getSlot() == 6 && admin.hasPreviousInventory()) {
 			admin.setPreviousInventory();
 		} else if (event.getSlot() == 8 && admin.hasNextInventory()) {
