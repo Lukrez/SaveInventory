@@ -26,7 +26,7 @@ public class PlayerInfo {
 
 	private ItemStack[] lastArmor;
 	private ItemStack[] lastInventory;
-	private Enum<SaveReason> savereason;
+	private SaveReason savereason;
 	private String world;
 
 	public PlayerInfo(String admin, String inventoryOwner) {
@@ -199,8 +199,7 @@ public class PlayerInfo {
 			return inv;
 
 		} catch (IOException e) {
-			//e.printStackTrace();
-			System.out.println("corrupted Playerfile. Deleting");
+			SaveInventory.getInstance().getLogger().warning("Corrupted Playerfile. Deleting.");
 			x.delete();
 			return null;
 		} catch (InvalidConfigurationException e) {

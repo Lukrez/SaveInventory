@@ -98,7 +98,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		return instance;
 	}
 
-	public void saveItemStackArray(Player player, String dateTime, Enum<SaveReason> savereason) {
+	public void saveItemStackArray(Player player, String dateTime, SaveReason savereason) {
 		File filePlayerFolder = new File(this.folderPlayerData, player.getName());
 		if (!filePlayerFolder.exists()) {
 			filePlayerFolder.mkdir();
@@ -119,7 +119,6 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			out.flush();
 			out.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -142,7 +141,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		if (g.before(this.lastReset))
 			return;
 		
-		System.out.println("removing inventories");
+		this.getLogger().info("Deleting inventories.");
 		for (String playername : this.folderPlayerData.list()) {
 			File playerfolder = new File(this.folderPlayerData, playername);
 			if (!playerfolder.isDirectory())
