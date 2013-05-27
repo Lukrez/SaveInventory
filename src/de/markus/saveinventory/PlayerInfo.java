@@ -33,7 +33,7 @@ public class PlayerInfo {
 
 		this.playerfolder = new File(SaveInventory.getInstance().getPlayerDataFolder(), inventoryOwner);
 		if (!this.playerfolder.exists()) {
-			Bukkit.getServer().getPlayer(admin).sendMessage(ChatColor.RED+"[SaveInventory] Von diesem Spieler ist kein Inventar gespeichert.");
+			Bukkit.getServer().getPlayer(admin).sendMessage(ChatColor.RED + "[SaveInventory] Von diesem Spieler ist kein Inventar gespeichert.");
 			return;
 		}
 		this.admin = admin;
@@ -131,13 +131,13 @@ public class PlayerInfo {
 			br.close();
 			YamlConfiguration yml = new YamlConfiguration();
 			yml.loadFromString(inventoryString);
-			
-	    	try {
-	    		this.savereason = SaveReason.valueOf(yml.getString("savereason"));
-	    	} catch (IllegalArgumentException e){
-	    		this.savereason = SaveReason.ParseError;
-	    	}
-			
+
+			try {
+				this.savereason = SaveReason.valueOf(yml.getString("savereason"));
+			} catch (IllegalArgumentException e) {
+				this.savereason = SaveReason.ParseError;
+			}
+
 			this.world = yml.getString("world");
 			this.lastInventory = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("inventory"), 36);
 			this.lastArmor = ItemParser.getItemStackArrayFromHashMap(yml.getConfigurationSection("armor"), 4);
@@ -168,20 +168,20 @@ public class PlayerInfo {
 			}
 			// set book
 			ItemStack infoItem;
-			if (this.savereason == SaveReason.PlayerDeath){
+			if (this.savereason == SaveReason.PlayerDeath) {
 				infoItem = new ItemStack(Material.BONE, 1);
-			} else if (this.savereason == SaveReason.PlayerLogin){
+			} else if (this.savereason == SaveReason.PlayerLogin) {
 				infoItem = new ItemStack(Material.FENCE_GATE, 1);
-			} else if (this.savereason == SaveReason.PlayerLogout){
+			} else if (this.savereason == SaveReason.PlayerLogout) {
 				infoItem = new ItemStack(Material.SADDLE, 1);
 			} else {
 				infoItem = new ItemStack(Material.BOOK, 1);
 			}
-			
+
 			ItemMeta infoItemMeta = infoItem.getItemMeta();
 			ArrayList<String> list = new ArrayList<String>();
-			list.add(ChatColor.RED + "world: "+this.world);
-			list.add(ChatColor.GOLD + "savereason: "+this.savereason.name());
+			list.add(ChatColor.RED + "world: " + this.world);
+			list.add(ChatColor.GOLD + "savereason: " + this.savereason.name());
 			infoItemMeta.setLore(list);
 			infoItemMeta.setDisplayName(ChatColor.GREEN + this.inventoryNames[this.invPointer]);
 			infoItem.setItemMeta(infoItemMeta);
@@ -199,7 +199,7 @@ public class PlayerInfo {
 			return inv;
 
 		} catch (IOException e) {
-			SaveInventory.getInstance().getLogger().warning(ChatColor.RED+"[SaveInventory] Corrupted Playerfile. Deleting.");
+			SaveInventory.getInstance().getLogger().warning(ChatColor.RED + "[SaveInventory] Corrupted Playerfile. Deleting.");
 			x.delete();
 			return null;
 		} catch (InvalidConfigurationException e) {
