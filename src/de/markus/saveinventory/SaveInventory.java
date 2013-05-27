@@ -27,6 +27,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -476,5 +477,15 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			return;
 		Date date = new Date();
 		this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerLogin);
+	}
+	
+	@EventHandler
+	public void onPlayerRespawn(PlayerRespawnEvent event) {
+		Player player = event.getPlayer();
+
+		if (!player.hasPermission("saveinv.save"))
+			return;
+		Date date = new Date();
+		this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerRespawn);
 	}
 }

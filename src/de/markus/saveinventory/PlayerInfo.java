@@ -174,6 +174,8 @@ public class PlayerInfo {
 				infoItem = new ItemStack(Material.FENCE_GATE, 1);
 			} else if (this.savereason == SaveReason.PlayerLogout) {
 				infoItem = new ItemStack(Material.SADDLE, 1);
+			} else if (this.savereason == SaveReason.PlayerRespawn) {
+				infoItem = new ItemStack(Material.RED_ROSE, 1);
 			} else {
 				infoItem = new ItemStack(Material.BOOK, 1);
 			}
