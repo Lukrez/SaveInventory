@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.zip.GZIPOutputStream;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -77,7 +78,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			public void run() {
 				saveInventories();
 				removeOldInventories();
-				Bukkit.getServer().broadcastMessage("Inventories saved.");
+				Bukkit.getServer().broadcastMessage(ChatColor.BLUE+"[SaveInventory] Inventories saved.");
 			}
 		}, 60, this.interval);
 	}
@@ -141,7 +142,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		if (g.before(this.lastReset))
 			return;
 		
-		this.getLogger().info("Deleting inventories.");
+		this.getLogger().info(ChatColor.GREEN + "[SaveInventory] Deleting inventories.");
 		for (String playername : this.folderPlayerData.list()) {
 			File playerfolder = new File(this.folderPlayerData, playername);
 			if (!playerfolder.isDirectory())
@@ -192,7 +193,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				if (this.interval < 1200) {
 					this.interval = 1200;
 					saveNeeded = true;
-					this.getLogger().warning("Interval for saving should be at least 1 min. Changed accordingly.");
+					this.getLogger().warning(ChatColor.RED+"[SaveInventory] Interval for saving should be at least 1 min. Changed accordingly.");
 				}
 			} else {
 				this.interval = 1200;
@@ -203,8 +204,8 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				if (!this.deleteAfter.matches("\\d+(m|h|d|w|M)")) {
 					this.deleteAfter = "3d";
 					saveNeeded = true;
-					this.getLogger().warning("Could not interpret how long to keep files. Use format <Number><Duration>");
-					this.getLogger().warning("use only h (hours), d (days), w (weeks) and M (Month)");
+					this.getLogger().warning(ChatColor.RED+"[SaveInventory] Could not interpret how long to keep files. Use format <Number><Duration>");
+					this.getLogger().warning(ChatColor.RED+"[SaveInventory] use only h (hours), d (days), w (weeks) and M (Month)");
 				}
 			} else {
 				this.deleteAfter = "3d";
@@ -278,7 +279,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		}
 
 		if (!sender.hasPermission("saveinv.show")){
-			sender.sendMessage("Du hast keine Rechte um dieses Plugin zu verwenden.");
+			sender.sendMessage(ChatColor.RED+"[SaveInventory] Du hast keine Rechte um dieses Plugin zu verwenden.");
 			return true;
 		}
 		
@@ -294,12 +295,12 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			this.loadConfig();
 			this.getServer().getScheduler().cancelTask(this.taskID);
 			this.startSaveTask();
-			sender.sendMessage("Reloaded config.");
+			sender.sendMessage(ChatColor.GREEN+"[SaveInventory] Reloaded config.");
 			return true;
 		}
 
 		if (!(sender instanceof Player)) {
-			sender.sendMessage("Nur ein Spieler kann diesen Befehl verwenden.");
+			sender.sendMessage(ChatColor.RED+"[SaveInventory] Nur ein Spieler kann diesen Befehl verwenden.");
 			return true;
 		}
 
@@ -313,7 +314,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				adminInfo = new PlayerInfo(admin, inventoryOwner);
 				
 				if (!adminInfo.getPlayerFolder().exists()){
-					player.sendMessage("Für diesen Spieler existieren keine gespeicherten Inventare.");
+					player.sendMessage(ChatColor.RED+"[SaveInventory] Für diesen Spieler existieren keine gespeicherten Inventare.");
 					return true;
 				}
 				this.currentViewers.put(admin, adminInfo);
@@ -323,7 +324,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 			Inventory inv = adminInfo.loadInventory();
 			if (inv == null){
-				player.sendMessage("Kann das Inventar nicht öffnen.");
+				player.sendMessage(ChatColor.RED+"[SaveInventory] Kann das Inventar nicht öffnen.");
 				return true;
 			}
 				
@@ -333,17 +334,17 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 		if (args[0].equalsIgnoreCase("logout")) {
 			if (!this.currentViewers.containsKey(player.getName())) {
-				player.sendMessage("Du bist momentan nicht eingeloggt.");
+				player.sendMessage(ChatColor.RED+"[SaveInventory] Du bist momentan nicht eingeloggt.");
 				return true;
 			}
 			this.currentViewers.remove(player.getName());
-			player.sendMessage("Du bist ausgeloggt.");
+			player.sendMessage(ChatColor.GREEN+"[SaveInventory] Du bist ausgeloggt.");
 			return true;
 		}
 
 		if (args[0].equalsIgnoreCase("give")) {
 			if (!this.currentViewers.containsKey(player.getName())) {
-				player.sendMessage("Du bist nicht in Saveinventories eingeloggt.");
+				player.sendMessage(ChatColor.RED+"[SaveInventory] Du bist nicht in Saveinventories eingeloggt.");
 				return true;
 			}
 
@@ -351,7 +352,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			// check, if player is online
 			Player inventoryOwner = Bukkit.getPlayer(adminInfo.getInventoryOwner());
 			if (inventoryOwner == null) {
-				player.sendMessage("Spieler momentan nicht online.");
+				player.sendMessage(ChatColor.RED+"[SaveInventory] Spieler momentan nicht online.");
 				return true;
 			}
 			// check if empty inventory
@@ -370,18 +371,18 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			}
 
 			if (!isempty) {
-				player.sendMessage("Spielerinventar ist nicht leer, kann es nicht ersetzen. Bitte leeren.");
-				inventoryOwner.sendMessage("Ein Admin möchte dir ein altes Inventar zurückgeben, bitte leere dein momentanes Inventar.");
+				player.sendMessage(ChatColor.RED+"[SaveInventory] Spielerinventar ist nicht leer, kann es nicht ersetzen. Bitte leeren.");
+				inventoryOwner.sendMessage(ChatColor.RED+"[SaveInventory] Ein Admin möchte dir ein altes Inventar zurückgeben, bitte leere dein momentanes Inventar.");
 				return true;
 			}
 			if (adminInfo.getLastArmor() == null || adminInfo.getLastInventory() == null) {
-				player.sendMessage("Kein Spielerinventar ausgewählt.");
+				player.sendMessage(ChatColor.RED+"[SaveInventory] Kein Spielerinventar ausgewählt.");
 				return true;
 			}
 			inventoryOwner.getInventory().setArmorContents(adminInfo.getLastArmor());
 			inventoryOwner.getInventory().setContents(adminInfo.getLastInventory());
-			player.sendMessage("Spielerinventar von " + inventoryOwner.getName() + " wurde gesetzt.");
-			inventoryOwner.sendMessage("Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zurückgegeben.");
+			player.sendMessage(ChatColor.GREEN+"[SaveInventory] Spielerinventar von " + inventoryOwner.getName() + " wurde gesetzt.");
+			inventoryOwner.sendMessage(ChatColor.GREEN+"[SaveInventory] Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zurückgegeben.");
 			return true;
 		}
 
@@ -406,8 +407,8 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		}
 
 		// ask if the last viewed inventory should be given to the player
-		player.sendMessage("Zum Ausloggen bitte /show logout eingeben.");
-		player.sendMessage("Falls der Spieler das letzte angesehene Inventar erhalten soll bitte /show give eingeben.");
+		player.sendMessage(ChatColor.BLUE+"[SaveInventory] Zum Ausloggen bitte /show logout eingeben.");
+		player.sendMessage(ChatColor.BLUE+"[SaveInventory] Falls der Spieler das letzte angesehene Inventar erhalten soll bitte /show give eingeben.");
 	}
 
 	@EventHandler
