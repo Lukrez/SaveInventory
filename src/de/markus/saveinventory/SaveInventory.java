@@ -401,7 +401,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			return;
 		}
 
-		if (!event.getInventory().getTitle().contains("SaveInventory:")) {
+		if (!event.getInventory().getTitle().contains("SaveInv:")) {
 			return;
 		}
 

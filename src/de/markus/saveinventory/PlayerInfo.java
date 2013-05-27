@@ -33,7 +33,7 @@ public class PlayerInfo {
 
 		this.playerfolder = new File(SaveInventory.getInstance().getPlayerDataFolder(), inventoryOwner);
 		if (!this.playerfolder.exists()) {
-			Bukkit.getServer().getPlayer(admin).sendMessage("Von diesem Spieler ist kein Inventar gespeichert.");
+			Bukkit.getServer().getPlayer(admin).sendMessage("[SaveInventory] Von diesem Spieler ist kein Inventar gespeichert.");
 			return;
 		}
 		this.admin = admin;
@@ -199,7 +199,7 @@ public class PlayerInfo {
 			return inv;
 
 		} catch (IOException e) {
-			SaveInventory.getInstance().getLogger().warning("Corrupted Playerfile. Deleting.");
+			SaveInventory.getInstance().getLogger().warning("[SaveInventory] Corrupted Playerfile. Deleting.");
 			x.delete();
 			return null;
 		} catch (InvalidConfigurationException e) {
