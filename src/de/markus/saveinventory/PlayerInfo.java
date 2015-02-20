@@ -160,7 +160,7 @@ public class PlayerInfo {
 
 			// set water as left klick
 			if (this.invPointer > 0) {
-				ItemStack itemWater = new ItemStack(Material.WATER, 1);
+				ItemStack itemWater = new ItemStack(Material.WATER_BUCKET, 1);
 				ItemMeta imWater = itemWater.getItemMeta();
 				imWater.setDisplayName(this.inventoryNames[this.invPointer - 1]);
 				itemWater.setItemMeta(imWater);
@@ -191,7 +191,7 @@ public class PlayerInfo {
 
 			// set lava as right klick
 			if (this.invPointer < this.inventoryNames.length - 1) {
-				ItemStack itemLava = new ItemStack(Material.LAVA, 1);
+				ItemStack itemLava = new ItemStack(Material.LAVA_BUCKET, 1);
 				ItemMeta imLava = itemLava.getItemMeta();
 				imLava.setDisplayName(this.inventoryNames[this.invPointer + 1]);
 				itemLava.setItemMeta(imLava);
