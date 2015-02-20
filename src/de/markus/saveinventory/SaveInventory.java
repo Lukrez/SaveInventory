@@ -1,16 +1,20 @@
 package de.markus.saveinventory;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.zip.GZIPOutputStream;
+
+import me.markus.easylogin.LoginEvent;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -25,12 +29,14 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import com.earth2me.essentials.api.NoLoanPermittedException;
+import com.earth2me.essentials.api.UserDoesNotExistException;
 
 public class SaveInventory extends JavaPlugin implements Listener {
 
@@ -64,9 +70,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		}
 
 		this.loadConfig();
-
 		this.getServer().getPluginManager().registerEvents(this, this);
-
 		this.startSaveTask();
 
 		this.getLogger().info("enabled.");
@@ -80,7 +84,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				removeOldInventories();
 				Bukkit.getServer().broadcastMessage(ChatColor.BLUE + "[SaveInventory] Inventories saved.");
 			}
-		}, 60, this.interval);
+		}, 3600, this.interval);
 	}
 
 	public boolean removeViewer(String admin) {
@@ -108,7 +112,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		File fileInv = new File(filePlayerFolder, dateTime + ".inv");
 
 		try {
-			BufferedOutputStream out = new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(fileInv)));
+			OutputStreamWriter out = new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(fileInv)), "UTF-8");
 
 			YamlConfiguration yamlInventory = new YamlConfiguration();
 			yamlInventory.set("world", player.getWorld().getName());
@@ -116,7 +120,16 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			yamlInventory.set("inventory", ItemParser.getHashMapFromItemStackArray(player.getInventory().getContents()));
 			yamlInventory.set("armor", ItemParser.getHashMapFromItemStackArray(player.getInventory().getArmorContents()));
 
-			out.write(yamlInventory.saveToString().getBytes());
+			if (com.earth2me.essentials.api.Economy.playerExists(player.getName())) {
+				try {
+					yamlInventory.set("money", com.earth2me.essentials.api.Economy.getMoneyExact(player.getName()));
+				} catch (UserDoesNotExistException e) {
+					yamlInventory.set("money", 0);
+				}
+			}
+
+			out.write(yamlInventory.saveToString().toCharArray());
+
 			out.flush();
 			out.close();
 		} catch (IOException e) {
@@ -275,7 +288,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if (!cmd.getName().equalsIgnoreCase("saveinv")) {
-			return true;
+			return false;
 		}
 
 		if (!sender.hasPermission("saveinv.show")) {
@@ -288,6 +301,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			sender.sendMessage("/saveinv logout");
 			sender.sendMessage("/saveinv give");
 			sender.sendMessage("/saveinv reload");
+			sender.sendMessage("/saveinv save");
 			return true;
 		}
 
@@ -307,6 +321,11 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		Player player = (Player) sender;
 
 		if (args[0].equalsIgnoreCase("show")) {
+			if (args.length == 1) {
+				player.sendMessage(ChatColor.RED + "[SaveInventory] Vermisse Spielername.");
+				return true;
+			}
+
 			String admin = player.getName();
 			String inventoryOwner = args[1];
 			PlayerInfo adminInfo;
@@ -342,6 +361,12 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			return true;
 		}
 
+		if (args[0].equalsIgnoreCase("save")) {
+			this.saveItemStackArray(player, this.fileDateFormat.format(new Date()), SaveReason.Command);
+			player.sendMessage(ChatColor.GREEN + "[SaveInventory] Dein Inventar wurde gespeichert.");
+			return true;
+		}
+
 		if (args[0].equalsIgnoreCase("give")) {
 			if (!this.currentViewers.containsKey(player.getName())) {
 				player.sendMessage(ChatColor.RED + "[SaveInventory] Du bist nicht in Saveinventories eingeloggt.");
@@ -372,21 +397,37 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 			if (!isempty) {
 				player.sendMessage(ChatColor.RED + "[SaveInventory] Spielerinventar ist nicht leer, kann es nicht ersetzen. Bitte leeren.");
-				inventoryOwner.sendMessage(ChatColor.RED + "[SaveInventory] Ein Admin m�chte dir ein altes Inventar zur�ckgeben, bitte leere dein momentanes Inventar.");
+				inventoryOwner.sendMessage(ChatColor.RED + "[SaveInventory] Ein Admin möchte dir ein altes Inventar zurückgeben, bitte leere dein momentanes Inventar.");
 				return true;
 			}
 			if (adminInfo.getLastArmor() == null || adminInfo.getLastInventory() == null) {
-				player.sendMessage(ChatColor.RED + "[SaveInventory] Kein Spielerinventar ausgew�hlt.");
+				player.sendMessage(ChatColor.RED + "[SaveInventory] Kein Spielerinventar ausgewählt.");
 				return true;
 			}
 			inventoryOwner.getInventory().setArmorContents(adminInfo.getLastArmor());
 			inventoryOwner.getInventory().setContents(adminInfo.getLastInventory());
+
+			// set money
+			if (com.earth2me.essentials.api.Economy.playerExists(adminInfo.getInventoryOwner())) {
+				try {
+					com.earth2me.essentials.api.Economy.setMoney(adminInfo.getInventoryOwner(), BigDecimal.valueOf(adminInfo.getMoney()));
+				} catch (UserDoesNotExistException e) {
+				} catch (NoLoanPermittedException e) {
+				}
+			}
+
 			player.sendMessage(ChatColor.GREEN + "[SaveInventory] Spielerinventar von " + inventoryOwner.getName() + " wurde gesetzt.");
-			inventoryOwner.sendMessage(ChatColor.GREEN + "[SaveInventory] Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zur�ckgegeben.");
+			inventoryOwner.sendMessage(ChatColor.GREEN + "[SaveInventory] Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zurückgegeben.");
 			return true;
 		}
 
-		return false;
+		sender.sendMessage("/saveinv show <player name>");
+		sender.sendMessage("/saveinv logout");
+		sender.sendMessage("/saveinv give");
+		sender.sendMessage("/saveinv reload");
+		sender.sendMessage("/saveinv save");
+
+		return true;
 	}
 
 	@EventHandler
@@ -420,6 +461,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 		Player player = (Player) event.getWhoClicked();
 		if (!player.hasPermission("saveinv.show"))
 			return;
+
 		// check if player is a viewer
 		if (!this.currentViewers.containsKey(player.getName())) {
 			return;
@@ -431,15 +473,23 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 		PlayerInfo admin = this.currentViewers.get(player.getName());
 
-		event.setCancelled(true);
-
-		// check if clicked on slotnr 7 or 8
+		// check if clicked on slotnr 4, 6, 7 or 8
+		ArrayList<Integer> slots_disabled = new ArrayList<Integer>();
+		slots_disabled.add(4);
+		slots_disabled.add(6);
+		slots_disabled.add(7);
+		slots_disabled.add(8);
 		if (event.getSlot() == 6 && admin.hasPreviousInventory()) {
+			event.setCancelled(true);
 			admin.setPreviousInventory();
 		} else if (event.getSlot() == 8 && admin.hasNextInventory()) {
+			event.setCancelled(true);
 			admin.setNextInventory();
 		} else {
-			return;
+			if (slots_disabled.contains(event.getSlot())) {
+				event.setCancelled(true);
+				return;
+			}
 		}
 
 		Inventory inv = admin.loadInventory();
@@ -467,18 +517,24 @@ public class SaveInventory extends JavaPlugin implements Listener {
 			return;
 		Date date = new Date();
 		this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerLogout);
+
+		if (this.currentViewers.containsKey(player.getName())) {
+			this.currentViewers.remove(player.getName());
+		}
 	}
 
 	@EventHandler
-	public void onPlayerLogin(PlayerLoginEvent event) {
+	public void onPlayerLogin(LoginEvent event) {
 		Player player = event.getPlayer();
-
-		if (!player.hasPermission("saveinv.save"))
+		if (!player.hasPermission("saveinv.save")) {
 			return;
-		Date date = new Date();
-		this.saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerLogin);
+		}
+		if (event.isLogin()) {
+			Date date = new Date();
+			saveItemStackArray(player, this.fileDateFormat.format(date), SaveReason.PlayerLogin);
+		}
 	}
-	
+
 	@EventHandler
 	public void onPlayerRespawn(PlayerRespawnEvent event) {
 		Player player = event.getPlayer();
