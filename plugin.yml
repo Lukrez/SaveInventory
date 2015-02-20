@@ -8,3 +8,5 @@ commands:
 
 author: Ktesibios
 authors: [Seadragon91]
+
+depend: [Essentials,EasyLogin]
