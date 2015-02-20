@@ -314,7 +314,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 				adminInfo = new PlayerInfo(admin, inventoryOwner);
 
 				if (!adminInfo.getPlayerFolder().exists()) {
-					player.sendMessage(ChatColor.RED + "[SaveInventory] Für diesen Spieler existieren keine gespeicherten Inventare.");
+					player.sendMessage(ChatColor.RED + "[SaveInventory] FÃ¼r diesen Spieler existieren keine gespeicherten Inventare.");
 					return true;
 				}
 				this.currentViewers.put(admin, adminInfo);
@@ -324,7 +324,7 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 			Inventory inv = adminInfo.loadInventory();
 			if (inv == null) {
-				player.sendMessage(ChatColor.RED + "[SaveInventory] Kann das Inventar nicht öffnen.");
+				player.sendMessage(ChatColor.RED + "[SaveInventory] Kann das Inventar nicht Ã¶ffnen.");
 				return true;
 			}
 
@@ -372,17 +372,17 @@ public class SaveInventory extends JavaPlugin implements Listener {
 
 			if (!isempty) {
 				player.sendMessage(ChatColor.RED + "[SaveInventory] Spielerinventar ist nicht leer, kann es nicht ersetzen. Bitte leeren.");
-				inventoryOwner.sendMessage(ChatColor.RED + "[SaveInventory] Ein Admin möchte dir ein altes Inventar zurückgeben, bitte leere dein momentanes Inventar.");
+				inventoryOwner.sendMessage(ChatColor.RED + "[SaveInventory] Ein Admin mï¿½chte dir ein altes Inventar zurï¿½ckgeben, bitte leere dein momentanes Inventar.");
 				return true;
 			}
 			if (adminInfo.getLastArmor() == null || adminInfo.getLastInventory() == null) {
-				player.sendMessage(ChatColor.RED + "[SaveInventory] Kein Spielerinventar ausgewählt.");
+				player.sendMessage(ChatColor.RED + "[SaveInventory] Kein Spielerinventar ausgewï¿½hlt.");
 				return true;
 			}
 			inventoryOwner.getInventory().setArmorContents(adminInfo.getLastArmor());
 			inventoryOwner.getInventory().setContents(adminInfo.getLastInventory());
 			player.sendMessage(ChatColor.GREEN + "[SaveInventory] Spielerinventar von " + inventoryOwner.getName() + " wurde gesetzt.");
-			inventoryOwner.sendMessage(ChatColor.GREEN + "[SaveInventory] Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zurückgegeben.");
+			inventoryOwner.sendMessage(ChatColor.GREEN + "[SaveInventory] Dein altes Inventar wurde dir von " + adminInfo.getAdmin() + " zurï¿½ckgegeben.");
 			return true;
 		}
 
