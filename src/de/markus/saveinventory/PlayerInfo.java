@@ -17,6 +17,8 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import com.earth2me.essentials.api.UserDoesNotExistException;
+
 public class PlayerInfo {
 
 	private File playerfolder;
@@ -26,6 +28,7 @@ public class PlayerInfo {
 
 	private ItemStack[] lastArmor;
 	private ItemStack[] lastInventory;
+	private double money;
 	private SaveReason savereason;
 	private String world;
 
@@ -63,6 +66,10 @@ public class PlayerInfo {
 		return this.lastInventory;
 	}
 
+	public double getMoney() {
+		return money;
+	}
+
 	private int[] toIntArray(String[] x) {
 		int[] y = new int[x.length];
 		for (int i = 0; i < x.length; i++) {
@@ -72,16 +79,15 @@ public class PlayerInfo {
 	}
 
 	private boolean isNewerInventory(String a, String b) {
-
 		int[] spA = toIntArray(a.replace(".inv", "").split("_"));
-		if (spA.length != 5) {
+		if (spA.length != 6) {
 			return true;
 		}
 		int[] spB = toIntArray(b.replace(".inv", "").split("_"));
-		if (spB.length != 5) {
+		if (spB.length != 6) {
 			return false;
 		}
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 6; i++) {
 			if (spA[i] > spB[i]) {
 				return true;
 			} else if (spA[i] < spB[i]) {
@@ -110,7 +116,6 @@ public class PlayerInfo {
 	}
 
 	public Inventory loadInventory() {
-
 		if (this.invPointer < 0)
 			return null;
 		File x = new File(this.playerfolder, this.inventoryNames[this.invPointer]);
@@ -120,7 +125,7 @@ public class PlayerInfo {
 		try {
 			FileInputStream in = new FileInputStream(x);
 			GZIPInputStream zipin = new GZIPInputStream(in);
-			InputStreamReader reader = new InputStreamReader(zipin);
+			InputStreamReader reader = new InputStreamReader(zipin, "UTF-8");
 			BufferedReader br = new BufferedReader(reader);
 
 			String readed;
@@ -144,9 +149,24 @@ public class PlayerInfo {
 
 			String titleInv = "SaveInv|" + this.inventoryOwner;
 			Inventory inv = Bukkit.createInventory(null, 54, titleInv);
+			
 			// set armor
 			for (int i = 0; i < 4; i++) {
 				inv.setItem(i, this.lastArmor[i]);
+			}
+
+			// set money
+			if (com.earth2me.essentials.api.Economy.playerExists(this.inventoryOwner)) {
+				ItemStack itemMoney = new ItemStack(Material.COOKIE, 1);
+				ItemMeta imMoney = itemMoney.getItemMeta();
+				try {
+					imMoney.setDisplayName("Money: " + yml.getDouble("money"));
+					this.money = com.earth2me.essentials.api.Economy.getMoneyExact(this.inventoryOwner).doubleValue();
+				} catch (UserDoesNotExistException e) {
+					imMoney.setDisplayName("Money: " + 0);
+				}
+				itemMoney.setItemMeta(imMoney);
+				inv.setItem(4, itemMoney);
 			}
 
 			// set inventory
@@ -160,7 +180,7 @@ public class PlayerInfo {
 
 			// set water as left klick
 			if (this.invPointer > 0) {
-				ItemStack itemWater = new ItemStack(Material.WATER, 1);
+				ItemStack itemWater = new ItemStack(Material.WATER_BUCKET, 1);
 				ItemMeta imWater = itemWater.getItemMeta();
 				imWater.setDisplayName(this.inventoryNames[this.invPointer - 1]);
 				itemWater.setItemMeta(imWater);
@@ -191,7 +211,7 @@ public class PlayerInfo {
 
 			// set lava as right klick
 			if (this.invPointer < this.inventoryNames.length - 1) {
-				ItemStack itemLava = new ItemStack(Material.LAVA, 1);
+				ItemStack itemLava = new ItemStack(Material.LAVA_BUCKET, 1);
 				ItemMeta imLava = itemLava.getItemMeta();
 				imLava.setDisplayName(this.inventoryNames[this.invPointer + 1]);
 				itemLava.setItemMeta(imLava);

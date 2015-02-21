@@ -1,6 +1,6 @@
 name: SaveInventory
 main: de.markus.saveinventory.SaveInventory
-version: 0.0.1
+version: 0.0.5
 
 commands:
   saveinv:
@@ -8,3 +8,5 @@ commands:
 
 author: Ktesibios
 authors: [Seadragon91]
+
+depend: [Essentials,EasyLogin]
